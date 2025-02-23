@@ -1,0 +1,1655 @@
+## Part 1
+
+## 2. Proofs
+
+Pour répondre à chaque soleil, une seule ligne de commande suffit. Abusez des syntaxes `cat TRUC | grep TRUC` par exemple pour ne montrer que ce qui est demandé.
+
+➜ **Cloner donc la VM qu'on vient d'installer, créez la machine `node1.tp1.b3`**
+
+- et tu te connectes direct en SSH avec ton utilisateur (avec `root` c'est désactivé par défaut sous Rocky)
+- sans SSH tu pourras pas faire de copier/coller, ~~ni pour copier/coller bêtement ce que te dit chatGPT, ni~~ pour écrire mon compte-rendu
+- s'il faut tu configures une IP vitefé, j'donne [les instructions pour le faire à la partie 2](/it4lik/b3e-linux-2024/-/blob/main/tp/1/part2.md) si tu as besoin de le faire now
+
+> Appelez-moi si vous galérez à vous co en SSH, ~~bande de noobs.~~, il **faut** que ça fonctionne, c'est pas une option. Et il **faut** que tu comprennes que c'est pas une option et que c'est important, que c'est la base. Et il **faut** que tu maîtrises ça, je te le ré-expliquerai autant de fois que nécessaire.
+
+🌞 **Prouvez que le schéma de partitionnement a bien été appliqué**
+
+- genre les partitions qu'on a défini à l'install
+  
+  ```
+  [user@efrei-xmg4agau1 ~]$ lsblock
+  -bash: lsblock: command not found
+  [user@efrei-xmg4agau1 ~]$ lsblk
+  NAME        MAJ:MIN RM  SIZE RO TYPE MOUNTPOINTS
+  sda           8:0    0   30G  0 disk 
+  ├─sda1        8:1    0  500M  0 part /boot
+  └─sda2        8:2    0   21G  0 part 
+    ├─rl-root 253:0    0   10G  0 lvm  /
+    ├─rl-swap 253:1    0    1G  0 lvm  [SWAP]
+    ├─rl-var  253:2    0    5G  0 lvm  /var
+    └─rl-home 253:3    0    5G  0 lvm  /home
+  sr0          11:0    1 1024M  0 rom
+  ```
+  
+  ``
+  
+- une commande qui affiche toutes les partitions en cours d'utilisation
+  
+  ```
+  [user@efrei-xmg4agau1 ~]$ df -h
+  Filesystem           Size  Used Avail Use% Mounted on
+  devtmpfs             4.0M     0  4.0M   0% /dev
+  tmpfs                1.8G     0  1.8G   0% /dev/shm
+  tmpfs                732M  8.6M  724M   2% /run
+  /dev/mapper/rl-root  9.8G  1.3G  8.0G  14% /
+  /dev/mapper/rl-home  4.9G   44K  4.6G   1% /home
+  /dev/mapper/rl-var   4.9G  116M  4.5G   3% /var
+  /dev/sda1            436M  309M  128M  71% /boot
+  tmpfs                366M     0  366M   0% /run/user/1000
+  ```
+  
+- ainsi que l'espace disponible sur chacune des partitions
+  
+
+```
+[user@efrei-xmg4agau1 ~]$ df -h | tr -s " " | cut -d " " -f1,4
+Filesystem Avail
+devtmpfs 4.0M
+tmpfs 1.8G
+tmpfs 724M
+/dev/mapper/rl-root 8.0G
+/dev/mapper/rl-home 4.6G
+/dev/mapper/rl-var 4.5G
+/dev/sda1 128M
+tmpfs 366M
+```
+
+➜ Par défaut, sous Rocky Linux :
+
+- il existe un groupe appelé `wheel` déjà créé à l'installation
+- le groupe `wheel` est déjà dans la conf `sudo` pour autoriser ses membres à utiliser les droits de `root` avec la commande `sudo`
+
+🌞 **Mettre en évidence la ligne de configuration `sudo` qui concerne le groupe `wheel`**
+
+- avec un `cat TRUC | grep TRUC` je veux voir que la bonne ligne
+  
+  ```
+  [user@efrei-xmg4agau1 etc]$ sudo cat sudoers | grep "wheel" | grep -v '^#'
+  [sudo] password for user: 
+  %wheel    ALL=(ALL)    ALL
+  ```
+  
+
+🌞 **Prouvez que votre utilisateur est bien dans le groupe `wheel`**
+
+```
+[user@efrei-xmg4agau1 etc]$ getent group wheel     
+wheel:x:10:user
+```
+
+🌞 **Prouvez que la langue configurée pour l'OS est bien l'anglais**
+
+- je veux une ligne de commande qui affiche la langue actuelle de l'OS
+  
+- ```
+  [user@efrei-xmg4agau1 etc]$ cat locale.conf 
+  LANG="en_US.UTF-8"
+  ```
+  
+- que vos messages d'erreur soient en anglais ça me suffit pas ;D
+  
+  ```
+  [user@efrei-xmg4agau1 etc]$ dmesg | grep -i  "error\|warn\|fail"
+  [    0.013018] Warning: Deprecated Hardware is detected: x86_64-v2:GenuineIntel:Intel(R) Core(TM) i5-8365U CPU @ 1.60GHz will not be maintained in a future major release and may be disabled
+  [    0.093511] RETBleed: WARNING: Spectre v2 mitigation leaves CPU vulnerable to RETBleed attacks, data leaks possible!
+  [    0.251105] ACPI: _OSC evaluation for CPUs failed, trying _PDC
+  [    0.255511] acpi PNP0A03:00: fail to add MMCONFIG information, can't access extended configuration space under this bridge
+  [    1.684194] Warning: Unmaintained driver is detected: e1000
+  [    4.148575] vmwgfx 0000:00:02.0: [drm] *ERROR* vmwgfx seems to be running on an unsupported hypervisor.
+  [    4.148578] vmwgfx 0000:00:02.0: [drm] *ERROR* This configuration is likely broken.
+  [    4.148580] vmwgfx 0000:00:02.0: [drm] *ERROR* Please switch to a supported graphics device to avoid problems.
+  [    6.828821] Warning: Unmaintained driver is detected: ip_set
+  ```
+  
+
+🌞 **Prouvez que le firewall est déjà actif**
+
+- le service de firewalling s'appelle `firewalld` sous Rocky (on le manipule avec la commande `firewall-cmd`)
+
+```
+[user@efrei-xmg4agau1 etc]$ sudo firewall-cmd --state
+running
+```
+
+# Part 2
+
+## 1. Basic networking conf
+
+### [](#a-static-ip)A. Static IP
+
+🌞 **Attribuer l'adresse IP `10.1.1.11/24`** à la VM
+
+```
+[user@localhost ~]$ cd /etc/sysconfig/network-scripts
+[user@localhost network-scripts]$ ls
+ifcfg-enp0s3  readme-ifcfg-rh.txt
+[user@localhost network-scripts]$ sudo nano ifcfg-enp0s8
+[sudo] password for user: 
+[user@localhost network-scripts]$ sudo nmcli con reload
+[user@localhost network-scripts]$ sudo nmcli con up lan
+Connection successfully activated (D-Bus active path: /org/freedesktop/NetworkManager/ActiveConnection/8)
+[user@localhost network-scripts]$ 
+[user@localhost network-scripts]$ ip a
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host 
+       valid_lft forever preferred_lft forever
+2: enp0s3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
+    link/ether 08:00:27:1b:7a:a2 brd ff:ff:ff:ff:ff:ff
+    inet 10.0.2.15/24 brd 10.0.2.255 scope global noprefixroute enp0s3
+       valid_lft forever preferred_lft forever
+    inet6 fe80::a00:27ff:fe1b:7aa2/64 scope link 
+       valid_lft forever preferred_lft forever
+3: enp0s8: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
+    link/ether 08:00:27:af:94:81 brd ff:ff:ff:ff:ff:ff
+    inet 10.1.1.11/24 brd 10.1.1.255 scope global noprefixroute enp0s8
+       valid_lft forever preferred_lft forever
+    inet6 fe80::a00:27ff:feaf:9481/64 scope link 
+       valid_lft forever preferred_lft forever
+[user@localhost network-scripts]$ 
+[user@localhost network-scripts]$ 
+[user@localhost network-scripts]$ cat ifcfg-enp0s8 
+DEVICE=enp0s8 # le nom de la carte
+NAME=lan      # un nom arbitraire pas trop chiant à taper
+
+BOOTPROTO=static # static ou dhcp
+ONBOOT=yes       # la carte s'allume automatiquement au démarrage
+
+IPADDR=10.1.1.11
+NETMASK=255.255.255.0
+[user@localhost network-scripts]$ 
+[user@localhost network-scripts]$ ping 10.1.1.200
+PING 10.1.1.200 (10.1.1.200) 56(84) bytes of data.
+64 bytes from 10.1.1.200: icmp_seq=1 ttl=64 time=1.04 ms
+64 bytes from 10.1.1.200: icmp_seq=2 ttl=64 time=0.809 ms
+64 bytes from 10.1.1.200: icmp_seq=3 ttl=64 time=0.808 ms
+64 bytes from 10.1.1.200: icmp_seq=4 ttl=64 time=0.828 ms
+64 bytes from 10.1.1.200: icmp_seq=5 ttl=64 time=0.315 ms
+64 bytes from 10.1.1.200: icmp_seq=6 ttl=64 time=0.754 ms
+64 bytes from 10.1.1.200: icmp_seq=7 ttl=64 time=0.451 ms
+^C
+--- 10.1.1.200 ping statistics ---
+7 packets transmitted, 7 received, 0% packet loss, time 6081ms
+rtt min/avg/max/mdev = 0.315/0.714/1.036/0.228 ms
+[user@localhost network-scripts]$ 
+```
+
+- ### [](#b-hostname)B. Hostname
+  
+
+🌞 **Attribuer le nom `node1.tp1.b3` à la VM**
+
+- ça se fait avec une commande `hostnamectl` en 2025 svp
+  
+- ```
+  [user@node1 etc]$ hostnamectl 
+     Static hostname: node1.tp1.b3
+  Transient hostname: localhost
+           Icon name: computer-vm
+             Chassis: vm 🖴
+          Machine ID: 853d67c14f484018bc30d155fa10353d
+             Boot ID: 4898ac1d97dc401d8effa437681d54a3
+      Virtualization: oracle
+    Operating System: Rocky Linux 9.5 (Blue Onyx)       
+         CPE OS Name: cpe:/o:rocky:rocky:9::baseos
+              Kernel: Linux 5.14.0-503.23.2.el9_5.x86_64
+        Architecture: x86-64
+     Hardware Vendor: innotek GmbH
+      Hardware Model: VirtualBox
+    Firmware Version: VirtualBox
+  ```
+  
+
+## [](#2-listening-ports)2. Listening ports
+
+🌞 **Déterminer la liste des programmes qui écoutent sur un port TCP**
+
+```
+[user@node1 etc]$ ss -tlp
+State        Recv-Q       Send-Q               Local Address:Port               Peer Address:Port       Process       
+LISTEN       0            128                        0.0.0.0:ssh                     0.0.0.0:*                        
+LISTEN       0            128                           [::]:ssh                        [::]:*                        
+```
+
+🌞 **Déterminer la liste des programmes qui écoutent sur un port UDP
+
+```
+[user@node1 etc]$ ss -ulp
+State        Recv-Q       Send-Q               Local Address:Port               Peer Address:Port       Process       
+UNCONN       0            0                        127.0.0.1:323                     0.0.0.0:*                        
+UNCONN       0            0                            [::1]:323                        [::]:*                        
+```
+
+## [](#3-firewalling)3. Firewalling
+
+[](/it4lik/b3e-linux-2024/-/raw/main/tp/1/img/fw.png)
+
+➜ **Vous pouvez afficher l'état actuel de `firewalld`, le firewall de Rocky Linux, avec :**
+
+```
+sudo firewall-cmd --list-all
+```
+
+🌞 **Pour chacun des ports précédemment repérés...**
+
+- montrez qu'il existe une règle firewall qui autorise le trafic entrant sur ce port
+- ou pas ?
+
+> **Attention !** Le firewall de Rocky Linux, `firewalld`, a deux concepts pour ouvrir un port TCP/UDP. Soit on ouvre... un port avec `--add-port` et on le voit apparaître devant `ports:`. Soit on ouvre un "service" avec `--add-service` et on le voit apparaître devant `services:`. Chaque "service" est donc un port ouvert (et à fermer potentiellement à la question suivante ;) ).
+
+```
+[user@node1 etc]$ sudo firewall-cmd --list-all
+public (active)
+  target: default
+  icmp-block-inversion: no
+  interfaces: enp0s3 enp0s8
+  sources: 
+  services: cockpit dhcpv6-client ssh
+  ports: 
+  protocols: 
+  forward: yes
+  masquerade: no
+  forward-ports: 
+  source-ports: 
+  icmp-blocks: 
+  rich rules: 
+```
+
+🌞 **Fermez tous les ports inutilement ouverts dans le firewall**
+
+- principe du moindre privilège encore et encore !
+  
+- pas besoin qu'un port soit ouvert si aucun service n'écoute dessus
+  
+  ```
+  [user@node1 etc]$ sudo firewall-cmd --remove-service=dhcpv6-client --permanent
+  [sudo] password for user: 
+  success
+  [user@localhost etc]$ sudo firewall-cmd --remove-service=cockpit --permanent
+  success
+  ```
+  
+  ```
+  [user@node1 etc]$ sudo firewall-cmd --list-all
+  public (active)
+    target: default
+    icmp-block-inversion: no
+    interfaces: enp0s3 enp0s8
+    sources: 
+    services: ssh
+    ports: 
+    protocols: 
+    forward: yes
+    masquerade: no
+    forward-ports: 
+    source-ports: 
+    icmp-blocks: 
+    rich rules: 
+  ```
+  
+
+🌞 **Pour toutes les applications qui sont en écoute sur TOUTES les adresses IP**
+
+- dans Linux, ce sont les applications qui écoutent sur la pseudo-adresse IP `0.0.0.0` : ça signifie que toutes les adresses IP de la machine sont concernées
+- modifier la configuration de l'application pour n'écouter que une seule IP : celle qui est nécessaire
+
+```
+[user@node1 etc]$ ss -tlp
+State       Recv-Q      Send-Q            Local Address:Port             Peer Address:Port      Process      
+LISTEN      0           128                   10.1.1.11:ssh                   0.0.0.0:*                      
+[user@localhost etc]$ 
+```
+
+#
+
+# Part 3 :
+
+## 1. LVM
+
+*LVM* (pour *Logical Volume Manager*) est l'outil de référence aujourd'hui sous Linux pour créer et gérer les partitions des disques.
+
+> Il a beaucoup beaucoup trop de features de fou, il se contente pas de couper des disques !
+
+🌞 **Afficher l'état actuel de LVM**
+
+- afficher la liste des *PV* (*Volume Volumes*)
+  
+  - ce sont les disque durs et partitions physiques que LVM gère
+    
+    ```
+    [user@node1 etc]$ lsblk
+    NAME        MAJ:MIN RM  SIZE RO TYPE MOUNTPOINTS
+    sda           8:0    0   30G  0 disk 
+    ├─sda1        8:1    0  500M  0 part /boot
+    └─sda2        8:2    0   21G  0 part 
+      ├─rl-root 253:0    0   10G  0 lvm  /
+      ├─rl-swap 253:1    0    1G  0 lvm  [SWAP]
+      ├─rl-var  253:2    0    5G  0 lvm  /var
+      └─rl-home 253:3    0    5G  0 lvm  /home
+    sr0          11:0    1 1024M  0 rom  
+    ```
+    
+- afficher la liste des *VG* (*Volume Groups*)
+  
+  - on regroupe les *PV* en des groupes appelés *VG
+    
+    ```
+    [user@node1 etc]$ sudo vgs
+      VG #PV #LV #SN Attr   VSize  VFree
+      rl   1   4   0 wz--n- 21.00g 4.00m
+    ```
+    
+- afficher la liste des *LV* (*Logical Volumes*)
+  
+  - les *VG* sont découpés en *LV*
+    
+  - un *LV* est une partition utilisable
+    
+    ```
+    [user@node1 etc]$ sudo lvdisplay
+      --- Logical volume ---
+      LV Path                /dev/rl/var
+      LV Name                var
+      VG Name                rl
+      LV UUID                dI8yoa-p9SB-z2Lu-ga0Z-Ih8H-5REH-MSs8zS
+      LV Write Access        read/write
+      LV Creation host, time localhost.localdomain, 2025-02-17 06:38:43 -0500
+      LV Status              available
+      # open                 1
+      LV Size                5.00 GiB
+      Current LE             1280
+      Segments               1
+      Allocation             inherit
+      Read ahead sectors     auto
+      - currently set to     256
+      Block device           253:2
+    
+      --- Logical volume ---
+      LV Path                /dev/rl/home
+      LV Name                home
+      VG Name                rl
+      LV UUID                mCaAUR-8L1b-FdPq-0Cfc-bxrU-wRgb-ghfMs0
+      LV Write Access        read/write
+      LV Creation host, time localhost.localdomain, 2025-02-17 06:38:43 -0500
+      LV Status              available
+      # open                 1
+      LV Size                5.00 GiB
+      Current LE             1280
+      Segments               1
+      Allocation             inherit
+      Read ahead sectors     auto
+      - currently set to     256
+      Block device           253:3
+    
+      --- Logical volume ---
+      LV Path                /dev/rl/root
+      LV Name                root
+      VG Name                rl
+      LV UUID                loB8TI-YjuO-JfkX-4SB4-A4o2-Mrfm-7lYKaB
+      LV Write Access        read/write
+      LV Creation host, time localhost.localdomain, 2025-02-17 06:38:44 -0500
+      LV Status              available
+      # open                 1
+      LV Size                10.00 GiB
+      Current LE             2560
+      Segments               1
+      Allocation             inherit
+      Read ahead sectors     auto
+      - currently set to     256
+      Block device           253:0
+    
+      --- Logical volume ---
+      LV Path                /dev/rl/swap
+      LV Name                swap
+      VG Name                rl
+      LV UUID                D1xLLa-BH3S-AY0R-2fBJ-pzaO-oshc-zYL9ZC
+      LV Write Access        read/write
+      LV Creation host, time localhost.localdomain, 2025-02-17 06:38:44 -0500
+      LV Status              available
+      # open                 2
+      LV Size                1.00 GiB
+      Current LE             256
+      Segments               1
+      Allocation             inherit
+      Read ahead sectors     auto
+      - currently set to     256
+      Block device           253:1
+    ```
+    
+
+🌞 **Déterminer le type de système de fichiers**
+
+- de la partition montée sur `/`
+  
+  ```
+  [user@node1 ~]$ sudo lsblk -f /dev/sda | grep root
+    ├─rl-root ext4        1.0            1b7bb93f-cfa0-457d-9a32-eb4f75633615        8G    13% /
+  ```
+  
+- de la partition montée sur `/home`
+  
+  ```
+  [user@node1 ~]$ sudo lsblk -f /dev/sda | grep home
+    └─rl-home ext4        1.0            4b640716-1d5f-4546-9b8a-49e74c0847f7      2.7G    40% /home
+  ```
+  
+- **attention** :
+  
+  - j'attends une commande qui détecte le type de système de fichiers sur une partition donnée : `<COMMANDE> /dev/chemin/partition`
+  - je ne VEUX PAS une commande qui affiche les partitions actuellement utilisées où on voit le système de fichiers utilisé (pas de `mount` par exemple)
+
+## [](#2-help-my-partition-is-full)2. HELP my partition is full
+
+🌞 **Remplissez votre partition `/home`**
+
+- on va simuler avec un truc bourrin :
+
+```
+dd if=/dev/zero of=/home/<TON_USER>/bigfile bs=4M count=2500
+```
+
+> 2500x4M ça fait 20G. Ca fait trop.
+
+🌞 **Constater que la partition est pleine**
+
+- avec un `df -h`
+
+🌞 **Agrandir la partition**
+
+- avec des commandes LVM il faut agrandir le logical volume
+- ensuite il faudra indiquer au système de fichier ext4 que la partition a été agrandie
+- prouvez avec un `df -h` que vous avez récupéré de l'espace en plus
+
+🌞 **Remplissez votre partition `/home`**
+
+- on va simuler encore avec un truc bourrin :
+
+```
+dd if=/dev/zero of=/home/<TON_USER>/bigfile bs=4M count=2500
+```
+
+> 2500x4M ça fait toujours 20G. Et ça fait toujours trop.
+
+```
+[user@node1 ~]$ sudo dd if=/dev/zero of=/home/user/bigfile bs=4M count=2500
+dd: error writing '/home/user/bigfile': No space left on device
+1235+0 records in
+1234+0 records out
+5179551744 bytes (5.2 GB, 4.8 GiB) copied, 8.15153 s, 635 MB/s
+```
+
+➜ **Eteignez la VM et ajoutez lui un disque de 40G**
+
+🌞 **Utiliser ce nouveau disque pour étendre la partition `/home` de 20G**
+
+- dans l'ordre il faut :
+  
+- indiquer à LVM qu'il y a un nouveau PV dispo
+  
+  ```
+  [user@node1 ~]$ sudo pvcreate /dev/sdb
+    Physical volume "/dev/sdb" successfully created.
+  ```
+  
+- ajouter ce nouveau PV au VG existant
+  
+  ```
+  [user@node1 ~]$ sudo vgextend rl_efrei-xmg4agau1 /dev/sdb
+    Volume group "rl_efrei-xmg4agau1" successfully extended
+  ```
+  
+- étendre le LV existant pour récupérer le nouvel espace dispo au sein du VG
+  
+  ```
+  [user@node1 ~]$ sudo vgextend rl_efrei-xmg4agau1 /dev/sdb1
+    Physical volume "/dev/sdb1" successfully created.
+    Volume group "rl_efrei-xmg4agau1" successfully extended
+  ```
+  
+  ```
+  [user@node1 ~]$ sudo vgdisplay
+    --- Volume group ---
+    VG Name               rl_efrei-xmg4agau1
+    System ID             
+    Format                lvm2
+    Metadata Areas        3
+    Metadata Sequence No  10
+    VG Access             read/write
+    VG Status             resizable
+    MAX LV                0
+    Cur LV                4
+    Open LV               4
+    Max PV                0
+    Cur PV                3
+    Act PV                3
+    VG Size               49.50 GiB
+    PE Size               4.00 MiB
+    Total PE              12672
+    Alloc PE / Size       7552 / 29.50 GiB
+    Free  PE / Size       5120 / 20.00 GiB
+    VG UUID               LE9S74-oTfB-RSWd-DPX8-r8Is-BlNN-RbKHdf
+  
+  [user@node1 ~]$ sudo lvextend -l +100%FREE /dev/rl_efrei-xmg4agau1/home
+    Size of logical volume rl_efrei-xmg4agau1/home changed from 10.00 GiB (2560 extents) to 30.00 GiB (7680 extents).
+    Logical volume rl_efrei-xmg4agau1/home successfully resized.
+  ```
+  
+- indiquer au système de fichier ext4 que la partition a été agrandie
+  
+  ```
+  [user@node1 ~]$ sudo resize2fs /dev/rl_efrei-xmg4agau1/home 
+  resize2fs 1.46.5 (30-Dec-2021)
+  Filesystem at /dev/rl_efrei-xmg4agau1/home is mounted on /home; on-line resizing required
+  old_desc_blocks = 2, new_desc_blocks = 4
+  The filesystem on /dev/rl_efrei-xmg4agau1/home is now 7864320 (4k) blocks long.
+  ```
+  
+- prouvez avec un `df -h` que vous avez récupéré de l'espace en plus
+  
+  ```
+  [user@node1 ~]$ df -h
+  Filesystem                            Size  Used Avail Use% Mounted on
+  devtmpfs                              4.0M     0  4.0M   0% /dev
+  tmpfs                                 229M     0  229M   0% /dev/shm
+  tmpfs                                  92M  2.5M   89M   3% /run
+  /dev/mapper/rl_efrei--xmg4agau1-root  9.8G  1.3G  8.0G  14% /
+  /dev/sda1                             436M  304M  133M  70% /boot
+  /dev/mapper/rl_efrei--xmg4agau1-var   4.9G  213M  4.4G   5% /var
+  /dev/mapper/rl_efrei--xmg4agau1-home   30G  9.3G   19G  33% /home
+  tmpfs                                  46M     0   46M   0% /run/user/1000
+  ```
+  
+
+## [](#3-prepare-another-partition)3. Prepare another partition
+
+Pour la suite du TP, on va préparer une dernière partition. Il devrait vous rester 20G de libre avec le disque de 40 que vous venez d'ajouter.
+
+**Cette partition contiendra des fichiers HTML pour des sites web (fictifs).**
+
+🌞 **Créez une nouvelle partition**
+
+- le LV doit s'appeler `web`
+  
+  ```
+  [user@node1 ~]$ sudo lvcreate -L+19.9G -n web rl_efrei-xmg4agau1
+    Rounding up size to full physical extent 19.90 GiB
+    Logical volume "web" created.
+  ```
+  
+- elle doit faire 20G et être formatée en ext4
+  
+  ```
+  [user@node1 ~]$ sudo mkfs -t ext4 /dev/rl_efrei-xmg4agau1/web
+  mke2fs 1.46.5 (30-Dec-2021)
+  Creating filesystem with 5217280 4k blocks and 1305600 inodes
+  Filesystem UUID: 8ab3633b-5658-4c63-853b-dc84a2c45342
+  Superblock backups stored on blocks: 
+      32768, 98304, 163840, 229376, 294912, 819200, 884736, 1605632, 2654208, 
+      4096000
+  
+  Allocating group tables: done                            
+  Writing inode tables: done                            
+  Creating journal (32768 blocks): done
+  Writing superblocks and filesystem accounting information: done
+  ```
+  
+- il faut la monter sur `/var/www`
+  
+  ```
+  [user@node1 ~]$ sudo mount /dev/rl_efrei-xmg4agau1/web /var/www
+  [sudo] password for rockynj: 
+  [rockynj@node1 ~]$ mount
+  proc on /proc type proc (rw,nosuid,nodev,noexec,relatime)
+  sysfs on /sys type sysfs (rw,nosuid,nodev,noexec,relatime,seclabel)
+  devtmpfs on /dev type devtmpfs (rw,nosuid,seclabel,size=4096k,nr_inodes=53174,mode=755,inode64)
+  securityfs on /sys/kernel/security type securityfs (rw,nosuid,nodev,noexec,relatime)
+  tmpfs on /dev/shm type tmpfs (rw,nosuid,nodev,seclabel,inode64)
+  devpts on /dev/pts type devpts (rw,nosuid,noexec,relatime,seclabel,gid=5,mode=620,ptmxmode=000)
+  tmpfs on /run type tmpfs (rw,nosuid,nodev,seclabel,size=93584k,nr_inodes=819200,mode=755,inode64)
+  cgroup2 on /sys/fs/cgroup type cgroup2 (rw,nosuid,nodev,noexec,relatime,seclabel,nsdelegate,memory_recursiveprot)
+  pstore on /sys/fs/pstore type pstore (rw,nosuid,nodev,noexec,relatime,seclabel)
+  bpf on /sys/fs/bpf type bpf (rw,nosuid,nodev,noexec,relatime,mode=700)
+  /dev/mapper/rl_efrei--xmg4agau1-root on / type ext4 (rw,relatime,seclabel)
+  selinuxfs on /sys/fs/selinux type selinuxfs (rw,nosuid,noexec,relatime)
+  systemd-1 on /proc/sys/fs/binfmt_misc type autofs (rw,relatime,fd=29,pgrp=1,timeout=0,minproto=5,maxproto=5,direct,pipe_ino=15454)
+  debugfs on /sys/kernel/debug type debugfs (rw,nosuid,nodev,noexec,relatime,seclabel)
+  tracefs on /sys/kernel/tracing type tracefs (rw,nosuid,nodev,noexec,relatime,seclabel)
+  mqueue on /dev/mqueue type mqueue (rw,nosuid,nodev,noexec,relatime,seclabel)
+  hugetlbfs on /dev/hugepages type hugetlbfs (rw,relatime,seclabel,pagesize=2M)
+  none on /run/credentials/systemd-sysctl.service type ramfs (ro,nosuid,nodev,noexec,relatime,seclabel,mode=700)
+  fusectl on /sys/fs/fuse/connections type fusectl (rw,nosuid,nodev,noexec,relatime)
+  configfs on /sys/kernel/config type configfs (rw,nosuid,nodev,noexec,relatime)
+  none on /run/credentials/systemd-tmpfiles-setup-dev.service type ramfs (ro,nosuid,nodev,noexec,relatime,seclabel,mode=700)
+  /dev/sda1 on /boot type xfs (rw,relatime,seclabel,attr2,inode64,logbufs=8,logbsize=32k,noquota)
+  /dev/mapper/rl_efrei--xmg4agau1-var on /var type ext4 (rw,relatime,seclabel)
+  /dev/mapper/rl_efrei--xmg4agau1-home on /home type ext4 (rw,relatime,seclabel)
+  none on /run/credentials/systemd-tmpfiles-setup.service type ramfs (ro,nosuid,nodev,noexec,relatime,seclabel,mode=700)
+  tmpfs on /run/user/1000 type tmpfs (rw,nosuid,nodev,relatime,seclabel,size=46788k,nr_inodes=11697,mode=700,uid=1000,gid=1000,inode64)
+  /dev/mapper/rl_efrei--xmg4agau1-web on /var/www type ext4 (rw,relatime,seclabel)
+  ```
+  
+
+🌞 **Proposez au moins une option de montage**
+
+- au moment où on monte la partition (avec fstab ou la commande `mount`), on peut choisir des options de montage
+  
+- proposez au moins une option de montage qui augmente le niveau de sécurité lors de l'utilisation de la partition
+  
+  ```
+  [pesso@node1 ~]$ sudo nano /etc/fstab
+  /dev/mapper/rl_efrei--xmg4agau1-web                             ext4    defaults        0 0
+  ```
+  
+- je rappelle que la partition ne contiendra que des fichiers HTML
+  
+
+# Part IV : User management
+
+**Hum, cette partie est censée être envoyée vite fait bien fait ! Prouvez-le moi :D**
+
+Gestion d'utilisateurs, de mot de passe, et de `sudo` ! Puis dans un deuxième temps, on continue sur la gestion de permissions.
+
+## [](#1-users)1. Users
+
+### [](#a-master-what-already-exists)A. Master what already exists
+
+🌞 **Déterminer l'existant :**
+
+- lister tous les utilisateurs créés sur la machine
+  
+  ```
+  [rockynj@node1 ~]$ cat /etc/passwd
+  root:x:0:0:root:/root:/bin/bash
+  bin:x:1:1:bin:/bin:/sbin/nologin
+  daemon:x:2:2:daemon:/sbin:/sbin/nologin
+  adm:x:3:4:adm:/var/adm:/sbin/nologin
+  lp:x:4:7:lp:/var/spool/lpd:/sbin/nologin
+  sync:x:5:0:sync:/sbin:/bin/sync
+  shutdown:x:6:0:shutdown:/sbin:/sbin/shutdown
+  halt:x:7:0:halt:/sbin:/sbin/halt
+  mail:x:8:12:mail:/var/spool/mail:/sbin/nologin
+  operator:x:11:0:operator:/root:/sbin/nologin
+  games:x:12:100:games:/usr/games:/sbin/nologin
+  ftp:x:14:50:FTP User:/var/ftp:/sbin/nologin
+  nobody:x:65534:65534:Kernel Overflow User:/:/sbin/nologin
+  systemd-coredump:x:999:997:systemd Core Dumper:/:/sbin/nologin
+  dbus:x:81:81:System message bus:/:/sbin/nologin
+  tss:x:59:59:Account used for TPM access:/:/usr/sbin/nologin
+  sssd:x:998:996:User for sssd:/:/sbin/nologin
+  sshd:x:74:74:Privilege-separated SSH:/usr/share/empty.sshd:/usr/sbin/nologin
+  chrony:x:997:995:chrony system user:/var/lib/chrony:/sbin/nologin
+  rockynj:x:1000:1000:rockyNJ:/home/rockynj:/bin/bash
+  tcpdump:x:72:72::/:/sbin/nologin
+  ```
+  
+- lister tous les groupes d'utilisateur
+  
+  ```
+  [rockynj@node1 ~]$ cat /etc/group
+  root:x:0:
+  bin:x:1:
+  daemon:x:2:
+  sys:x:3:
+  adm:x:4:
+  tty:x:5:
+  disk:x:6:
+  lp:x:7:
+  mem:x:8:
+  kmem:x:9:
+  wheel:x:10:rockynj
+  cdrom:x:11:
+  mail:x:12:
+  man:x:15:
+  dialout:x:18:
+  floppy:x:19:
+  games:x:20:
+  tape:x:33:
+  video:x:39:
+  ftp:x:50:
+  lock:x:54:
+  audio:x:63:
+  users:x:100:
+  nobody:x:65534:
+  utmp:x:22:
+  utempter:x:35:
+  input:x:999:
+  kvm:x:36:
+  render:x:998:
+  systemd-journal:x:190:
+  systemd-coredump:x:997:
+  dbus:x:81:
+  ssh_keys:x:101:
+  tss:x:59:
+  sssd:x:996:
+  sshd:x:74:
+  chrony:x:995:
+  sgx:x:994:
+  rockynj:x:1000:
+  tcpdump:x:72:
+  ```
+  
+- déterminer la liste des groupes dans lesquels se trouvent votre utilisateur
+  
+  ```
+  [rockynj@node1 ~]$ groups rockynj
+  rockynj : rockynj wheel
+  ```
+  
+
+🌞 **Lister tous les processus qui sont actuellement en cours d'exécution, lancés par `root`**
+
+```
+[rockynj@node1 ~]$ ps -u root
+    PID TTY          TIME CMD
+      1 ?        00:00:01 systemd
+      2 ?        00:00:00 kthreadd
+      3 ?        00:00:00 pool_workqueue_
+      4 ?        00:00:00 kworker/R-rcu_g
+      5 ?        00:00:00 kworker/R-rcu_p
+      6 ?        00:00:00 kworker/R-slub_
+      7 ?        00:00:00 kworker/R-netns
+     11 ?        00:00:00 kworker/R-mm_pe
+     12 ?        00:00:00 kworker/u4:1-events_unbound
+     13 ?        00:00:00 rcu_tasks_kthre
+     14 ?        00:00:00 rcu_tasks_rude_
+     15 ?        00:00:00 rcu_tasks_trace
+     16 ?        00:00:00 ksoftirqd/0
+     17 ?        00:00:00 rcu_preempt
+     18 ?        00:00:00 migration/0
+     19 ?        00:00:00 idle_inject/0
+     21 ?        00:00:00 cpuhp/0
+     23 ?        00:00:00 kdevtmpfs
+     24 ?        00:00:00 kworker/R-inet_
+     25 ?        00:00:00 kauditd
+     26 ?        00:00:00 khungtaskd
+     27 ?        00:00:00 oom_reaper
+     28 ?        00:00:00 kworker/u4:2-events_unbound
+     29 ?        00:00:00 kworker/R-write
+     30 ?        00:00:00 kcompactd0
+     31 ?        00:00:00 ksmd
+     32 ?        00:00:00 kworker/R-crypt
+     33 ?        00:00:00 kworker/R-kinte
+     34 ?        00:00:00 kworker/R-kbloc
+     35 ?        00:00:00 kworker/R-blkcg
+     36 ?        00:00:00 kworker/R-tpm_d
+     37 ?        00:00:00 kworker/R-md
+     38 ?        00:00:00 kworker/R-md_bi
+     39 ?        00:00:00 kworker/R-edac-
+     40 ?        00:00:00 watchdogd
+     41 ?        00:00:00 kworker/0:1H-kblockd
+     42 ?        00:00:00 kswapd0
+     48 ?        00:00:00 kworker/R-kthro
+     52 ?        00:00:00 kworker/R-acpi_
+     53 ?        00:00:00 kworker/R-kmpat
+     54 ?        00:00:00 kworker/R-kalua
+     55 ?        00:00:00 kworker/R-mld
+     57 ?        00:00:00 kworker/R-ipv6_
+     67 ?        00:00:00 kworker/R-kstrp
+    178 ?        00:00:00 kworker/u5:0
+    378 ?        00:00:00 kworker/R-ata_s
+    379 ?        00:00:00 scsi_eh_0
+    380 ?        00:00:00 scsi_eh_1
+    381 ?        00:00:00 kworker/R-scsi_
+    382 ?        00:00:00 kworker/R-scsi_
+    383 ?        00:00:00 scsi_eh_2
+    384 ?        00:00:00 scsi_eh_3
+    386 ?        00:00:00 kworker/R-scsi_
+    387 ?        00:00:00 kworker/R-scsi_
+    397 ?        00:00:00 kworker/0:2H-kblockd
+    535 ?        00:00:00 kworker/R-kdmfl
+    542 ?        00:00:00 kworker/R-kdmfl
+    563 ?        00:00:00 jbd2/dm-0-8
+    564 ?        00:00:00 kworker/R-ext4-
+    627 ?        00:00:00 systemd-journal
+    642 ?        00:00:00 systemd-udevd
+    691 ?        00:00:00 kworker/R-kdmfl
+    692 ?        00:00:00 kworker/R-kdmfl
+    693 ?        00:00:00 kworker/R-kdmfl
+    704 ?        00:00:00 kworker/R-xfsal
+    705 ?        00:00:00 kworker/R-xfs_m
+    706 ?        00:00:00 kworker/R-xfs-b
+    707 ?        00:00:00 kworker/R-xfs-c
+    708 ?        00:00:00 kworker/R-xfs-r
+    709 ?        00:00:00 kworker/R-xfs-b
+    710 ?        00:00:00 kworker/R-xfs-i
+    711 ?        00:00:00 kworker/R-xfs-l
+    712 ?        00:00:00 kworker/R-xfs-c
+    713 ?        00:00:00 xfsaild/sda1
+    717 ?        00:00:00 irq/18-vmwgfx
+    723 ?        00:00:00 kworker/R-ttm
+    733 ?        00:00:00 jbd2/dm-3-8
+    734 ?        00:00:00 kworker/R-ext4-
+    737 ?        00:00:00 jbd2/dm-2-8
+    738 ?        00:00:00 kworker/R-ext4-
+    750 ?        00:00:00 auditd
+    778 ?        00:00:00 NetworkManager
+    781 ?        00:00:00 systemd-logind
+    814 ?        00:00:00 crond
+    817 tty1     00:00:00 agetty
+    835 ?        00:00:00 rsyslogd
+    869 ?        00:00:00 sshd
+    884 ?        00:00:00 anacron
+    895 ?        00:00:02 kworker/0:1-events
+    896 ?        00:00:00 sshd
+    939 ?        00:00:00 kworker/u4:3-events_unbound
+    940 ?        00:00:00 kworker/0:2-ata_sff
+    945 ?        00:00:00 kworker/0:0-ata_sff
+```
+
+🌞 **Lister tous les processus qui sont actuellement en cours d'exécution, lancés par votre utilisateur**
+
+```
+[rockynj@node1 ~]$ ps -u rockynj
+    PID TTY          TIME CMD
+    901 ?        00:00:00 systemd
+    903 ?        00:00:00 (sd-pam)
+    910 ?        00:00:00 sshd
+    911 pts/0    00:00:00 bash
+    952 pts/0    00:00:00 ps
+```
+
+🌞 **Déterminer le hash du mot de passe de `root`**
+
+```
+[rockynj@node1 etc]$ sudo cat shadow | grep root
+root:$6$ZOHyKh1ifKXslQqM$3NBeZSuhKjzu4ectjVmMjScNsN/rIPjp0iUZEYsHIId9bkRfHRTNjJliWMA.pjtxuHmZC6/VX0xH1XAEu1I0..::0:99999:7:::
+```
+
+🌞 **Déterminer le hash du mot de passe de votre utilisateur**
+
+```
+[rockynj@node1 etc]$ sudo cat shadow | grep rockynj
+rockynj:$6$IfkYgtMQFmcqYIMv$sw.OOGtEWVuHxhkZz40YNhGxEPbc2/6Ky9/owKrVVbTKIv7IzZnLmb2OknvKI27CpB1tQCB5gr7Ofus5vnyIR1::0:99999:7:::
+```
+
+🌞 **Déterminer la fonction de hachage qui a été utilisée**
+
+```
+$6$ = fonction de hashage : SHA-512
+```
+
+🌞 **Déterminer, pour l'utilisateur `root`** :
+
+```
+[rockynj@node1 etc]$ sudo cat /etc/passwd | grep root
+root:x:0:0:root:/root:/bin/bash
+```
+
+- son shell par défaut
+
+```
+/bin/bash
+```
+
+- le chemin vers son répertoire personnel
+  
+  ```
+  /root
+  ```
+  
+
+🌞 **Déterminer, pour votre utilisateur** :
+
+```
+[rockynj@node1 bin]$ sudo cat /etc/passwd | grep rockynj
+rockynj:x:1000:1000:rockyNJ:/home/rockynj:/bin/bash
+```
+
+- son shell par défaut
+  
+  ```
+  /bin/bash
+  ```
+  
+- le chemin vers son répertoire personnel
+  
+  ```
+  /home/rockynj
+  ```
+  
+
+🌞 **Afficher la ligne de configuration du fichier `sudoers` qui permet à votre utilisateur d'utiliser `sudo`**
+
+```
+%wheel    ALL=(ALL)    ALL
+```
+
+```
+Mon utilisateur est dans ce groupe
+```
+
+### [](#b-user-creation-and-configuration)B. User creation and configuration
+
+🌞 **Créer un utilisateur :**
+
+- doit s'appeler `meow`
+- ne doit appartenir QUE à un groupe nommé `admins`
+- ne doit pas avoir de répertoire personnel utilisable
+- ne doit pas avoir un shell utilisable
+
+> Il s'agit donc ici d'un utilisateur avec lequel on pourra pas se connecter à la machine (ni en console, ni en SSH).
+
+```
+[rockynj@node1 etc]$ sudo groupadd admins
+```
+
+```
+[rockynj@node1 etc]$ sudo adduser
+Usage: adduser [options] LOGIN
+       adduser -D
+       adduser -D [options]
+
+Options:
+      --badname                 do not check for bad names
+  -b, --base-dir BASE_DIR       base directory for the home directory of the
+                                new account
+      --btrfs-subvolume-home    use BTRFS subvolume for home directory
+  -c, --comment COMMENT         GECOS field of the new account
+  -d, --home-dir HOME_DIR       home directory of the new account
+  -D, --defaults                print or change default useradd configuration
+  -e, --expiredate EXPIRE_DATE  expiration date of the new account
+  -f, --inactive INACTIVE       password inactivity period of the new account
+  -g, --gid GROUP               name or ID of the primary group of the new
+                                account
+  -G, --groups GROUPS           list of supplementary groups of the new
+                                account
+  -h, --help                    display this help message and exit
+  -k, --skel SKEL_DIR           use this alternative skeleton directory
+  -K, --key KEY=VALUE           override /etc/login.defs defaults
+  -l, --no-log-init             do not add the user to the lastlog and
+                                faillog databases
+  -m, --create-home             create the user's home directory
+  -M, --no-create-home          do not create the user's home directory
+  -N, --no-user-group           do not create a group with the same name as
+                                the user
+  -o, --non-unique              allow to create users with duplicate
+                                (non-unique) UID
+  -p, --password PASSWORD       encrypted password of the new account
+  -r, --system                  create a system account
+  -R, --root CHROOT_DIR         directory to chroot into
+  -P, --prefix PREFIX_DIR       prefix directory where are located the /etc/* files
+  -s, --shell SHELL             login shell of the new account
+  -u, --uid UID                 user ID of the new account
+  -U, --user-group              create a group with the same name as the user
+  -Z, --selinux-user SEUSER     use a specific SEUSER for the SELinux user mapping
+
+[rockynj@node1 etc]$ sudo useradd -m -d /nonexistent -s /usr/sbin/nologin -G admins meow
+```
+
+```
+[rockynj@node1 etc]$ cat /etc/passwd | grep meow
+meow:x:1001:1002::/nonexistent:/usr/sbin/nologin
+[rockynj@node1 etc]$ 
+[rockynj@node1 etc]$ groups meow
+meow : meow admins
+```
+
+🌞 **Configuration `sudoers`**
+
+- ajouter une configuration `sudoers` pour que l'utilisateur `meow` puisse exécuter seulement et uniquement les commandes `ls`, `cat`, `less` et `more` en tant que votre utilisateur
+  
+  ```
+  [rockynj@node1 etc]$ sudo nano sudoers
+  [rockynj@node1 etc]$ sudo cat sudo
+  sudo.conf       sudoers         sudoers.d/      sudo-ldap.conf  
+  [rockynj@node1 etc]$ sudo cat sudoers | grep rockynj
+  meow ALL=(rockynj) NOPASSWD: /bin/ls, /bin/cat, /usr/bin/less, /usr/bin/more
+  ```
+  
+- ajouter une configuration `sudoers` pour que les membres du groupe `admins` puisse exécuter seulement et uniquement la commande `apt` en tant que `root`
+  
+  ```
+  [rockynj@node1 etc]$ sudo vim sudoers
+  [rockynj@node1 etc]$ sudo cat su
+  subgid          subuid          sudo.conf       sudoers.d/      
+  subgid-         subuid-         sudoers         sudo-ldap.conf  
+  [rockynj@node1 etc]$ sudo cat sudoers | grep admins
+  admins ALL=(root) NOPASSWD: /usr/bin/apt
+  ```
+  
+- ajouter une configuration `sudoers` pour que votre utilisateur puisse exécuter n'importe quel commande en tant `root`, sans avoir besoin de saisir un mot de passe
+  
+  ```
+  [rockynj@node1 etc]$ sudo cat sudoers| grep rockynj\ ALL
+  rockynj ALL=(root) NOPASSWD: ALL
+  ```
+  
+- prouvez que ces 3 configurations ont pris effet (vous devez vous authentifier avec le bon utilisateur, et faire une commande `sudo` qui doit fonctioner correctement)
+  
+- ```
+  pesso@fedora:~$ ssh meow@10.1.1.11
+  meow@10.1.1.11's password: 
+  This account is currently not available.
+  Connection to 10.1.1.11 closed.
+  ```
+  
+
+> ```
+> [rockynj@node1 etc]$ sudo -u meow ls
+> adjtime             GREP_COLORS     makedumpfile.conf.sample  rwtab.d
+> aliases             groff         man_db.conf           sasl2
+> alternatives         group         microcode_ctl           security
+> anacrontab         group-         mke2fs.conf           selinux
+> audit             grub2.cfg     modprobe.d           services
+> authselect         grub.d         modules-load.d           sestatus.conf
+> bash_completion.d     gshadow     motd               shadow
+> bashrc             gshadow-     motd.d               shadow-
+> binfmt.d         gss         mtab               shells
+> chrony.conf         host.conf     nanorc               skel
+> chrony.keys         hostname     NetworkManager           ssh
+> cifs-utils         hosts         networks           ssl
+> cron.d             inittab     nftables           sssd
+> cron.daily         inputrc     nsswitch.conf           statetab.d
+> cron.deny         iproute2     nsswitch.conf.bak       subgid
+> cron.hourly         issue         nvme               subgid-
+> cron.monthly         issue.d     openldap           subuid
+> crontab             issue.net     opt               subuid-
+> cron.weekly         kdump         os-release           sudo.conf
+> crypto-policies         kdump.conf     pam.d               sudoers
+> crypttab         kernel         passwd               sudoers.d
+> csh.cshrc         keys         passwd-           sudo-ldap.conf
+> csh.login         keyutils     pkcs11               sysconfig
+> dbus-1             krb5.conf     pki               sysctl.conf
+> debuginfod         krb5.conf.d     pm               sysctl.d
+> default             ld.so.cache     popt.d               systemd
+> depmod.d         ld.so.conf     printcap           system-release
+> dhcp             ld.so.conf.d     profile           system-release-cpe
+> DIR_COLORS         libaudit.conf     profile.d           terminfo
+> DIR_COLORS.lightbgcolor  libibverbs.d     protocols           tmpfiles.d
+> dnf             libnl         rc.d               tpm2-tss
+> dracut.conf         libreport     rc.local           trusted-key.key
+> dracut.conf.d         libssh         redhat-release           udev
+> environment         libuser.conf     request-key.conf       vconsole.conf
+> ethertypes         locale.conf     request-key.d           vimrc
+> exports             localtime     resolv.conf           virc
+> filesystems         login.defs     rocky-release           X11
+> firewalld         logrotate.conf  rocky-release-upstream    xattr.conf
+> fonts             logrotate.d     rpc               xdg
+> fstab             lvm         rpm               yum
+> gcrypt             machine-id     rsyslog.conf           yum.conf
+> gnupg             magic         rsyslog.d           yum.repos.d
+> ```
+> 
+> ```
+> [rockynj@node1 etc]$ sudo -u meow cat /etc/passwd  
+> root:x:0:0:root:/root:/bin/bash
+> bin:x:1:1:bin:/bin:/sbin/nologin
+> daemon:x:2:2:daemon:/sbin:/sbin/nologin
+> adm:x:3:4:adm:/var/adm:/sbin/nologin
+> lp:x:4:7:lp:/var/spool/lpd:/sbin/nologin
+> sync:x:5:0:sync:/sbin:/bin/sync
+> shutdown:x:6:0:shutdown:/sbin:/sbin/shutdown
+> halt:x:7:0:halt:/sbin:/sbin/halt
+> mail:x:8:12:mail:/var/spool/mail:/sbin/nologin
+> operator:x:11:0:operator:/root:/sbin/nologin
+> games:x:12:100:games:/usr/games:/sbin/nologin
+> ftp:x:14:50:FTP User:/var/ftp:/sbin/nologin
+> nobody:x:65534:65534:Kernel Overflow User:/:/sbin/nologin
+> systemd-coredump:x:999:997:systemd Core Dumper:/:/sbin/nologin
+> dbus:x:81:81:System message bus:/:/sbin/nologin
+> tss:x:59:59:Account used for TPM access:/:/usr/sbin/nologin
+> sssd:x:998:996:User for sssd:/:/sbin/nologin
+> sshd:x:74:74:Privilege-separated SSH:/usr/share/empty.sshd:/usr/sbin/nologin
+> chrony:x:997:995:chrony system user:/var/lib/chrony:/sbin/nologin
+> rockynj:x:1000:1000:rockyNJ:/home/rockynj:/bin/bash
+> tcpdump:x:72:72::/:/sbin/nologin
+> meow:x:1001:1002::/nonexistent:/usr/sbin/nologin
+> ```
+> 
+> ```
+> [rockynj@node1 etc]$ sudo -u meow less /etc/passwd
+> [rockynj@node1 etc]$ 
+> [rockynj@node1 etc]$ sudo -u meow more /etc/hostname 
+> node1.tp1.b3
+> ```
+> 
+> ```
+> Test avec une commande que nous avons pas renseignée : 
+> 
+> [rockynj@node1 etc]$ sudo -u meow touch toto
+> touch: cannot touch 'toto': Permission denied
+> [rockynj@node1 etc]$ sudo -u meow mkdir toto
+> mkdir: cannot create directory ‘toto’: Permission denied
+> ```
+> 
+> ```
+> [rockynj@node1 etc]$ sudo apt update
+> All packages are up to date. 
+> [rockynj@node1 etc]$ sudo ls /root/
+> anaconda-ks.cfg
+> 
+> 
+> Pas de demande de mdp c'est good :)
+> ```
+> 
+> Pour chaque point précédent, c'est une seule ligne de configuration à ajouter dans le fichier `sudoers` de la machine.
+
+### [](#c-hackers-gonna-hack)C. Hackers gonna hack
+
+🌞 **Déjà une configuration faible ?**
+
+- l'utilisateur `meow` est en réalité complètement `root` sur la machine hein là. Prouvez-le.
+  
+  ```
+  L'utilisateur meow peut exécuter la commande less en tant que rockynj pour accéder à un fichier en lecture, puis exploiter une vulnérabilité de less permettant d'exécuter du code et d'obtenir un shell.
+  
+  [meow@node1 ~]$ sudo -u rockynj less /etc/profile
+  
+  !/bin/sh
+  
+  sh-5.1$ 
+  sh-5.1$ 
+  sh-5.1$ pwd
+  /home/rockynj
+  sh-5.1$ 
+  ```
+  
+- proposez une configuration similaire, sans présenter cette faiblesse de configuration
+  
+  - vous pouvez ajouter de la configuration
+    
+    ```
+    Interdire l'accès à /bin/bash et /bin/sh
+    ```
+    
+    ```
+    meow ALL=(rockynj) NOPASSWD: /bin/ls, /bin/cat, /usr/bin/more, /usr/bin/less
+    meow ALL=(rockynj) NOPASSWD: !/bin/bash, !/bin/sh
+    %admins ALL=(root) NOPASSWD: /usr/bin/apt
+    rockynj ALL=(root) NOPASSWD: ALL 
+    ```
+    
+- ou supprimer de la configuration
+  
+- du moment qu'on garde des fonctionnalités à peu près équivalentes !
+  
+
+## [](#2-files-and-permissions)2. Files and permissions
+
+**Dans un OS, en particulier Linux, on dit souvent que "tout est fichier".**
+
+En effet, que ce soit les programmes (que ce soit `ls`, ou Firefox, ou Steam, ou le kernel), les fichiers personnels, les fichiers de configuration, et bien d'autres, **l'ensemble des composants d'un OS, et tout ce qu'on peut y ajouter se résume à un gros tas de fichiers.**
+
+Gérer correctement les permissions des fichiers est une étape essentielle dans le renforcement d'une machine.
+
+**C'est la première barrière de sécurité, (beaucoup) trop souvent négligée, alors qu'elle est extrêmement efficace et robuste.**
+
+### [](#a-listing-posix-permissions)A. Listing POSIX permissions
+
+🌞 **Déterminer les permissions des fichiers/dossiers...**
+
+- le fichier qui contient la liste des utilisateurs
+  
+  ```
+  [rockynj@node1 ~]$ ls -al /etc/passwd
+  -rw-r--r--. 1 root root 1115 Feb 22 12:37 /etc/passwd
+  ```
+  
+- le fichier qui contient la liste des hashes des mots de passe des utilisateurs
+  
+  ```
+  [rockynj@node1 ~]$ ls -al /etc/shadow
+  ----------. 1 root root 896 Feb 22 12:37 /etc/shadow
+  ```
+  
+- le fichier de configuration du serveur OpenSSH
+  
+  ```
+  [rockynj@node1 ~]$ ls -al /etc/ssh/sshd_config
+  -rw-------. 1 root root 3669 Feb 17 17:35 /etc/ssh/sshd_config
+  ```
+  
+- le répertoire personnel de l'utilisateur `root`
+  
+  ```
+  [rockynj@node1 ~]$ sudo ls -l /root/
+  total 4
+  -rw-------. 1 root root 1480 Feb 17 12:30 anaconda-ks.cfg
+  ```
+  
+- le répertoire personnel de votre utilisateur
+  
+  ```
+  [rockynj@node1 ~]$ ls -ld /home/rockynj        
+  drwx------. 2 rockynj rockynj 4096 Feb 22 13:52 /home/rockynj
+  ```
+  
+- le programme `ls`
+  
+  ```
+  [rockynj@node1 ~]$ ls -l /bin/ls
+  -rwxr-xr-x. 1 root root 140952 Nov  6 17:29 /bin/ls
+  ```
+  
+- le programme `systemctl`
+  
+  ```
+  [rockynj@node1 ~]$ ls -l /bin/systemctl 
+  -rwxr-xr-x. 1 root root 305744 Nov 16 02:22 /bin/systemctl
+  ```
+  
+
+> POSIX c'est le nom d'un standard qui regroupe plein de concepts avec lesquels vous êtes finalement déjà familiers. Les permissions rwx qu'on retrouve sous les OS Linux (et MacOS, et BSD, et d'autres) font partie de ce standard et sont donc appelées "permissions POSIX".
+
+### [](#b-protect-a-file-using-permissions)B. Protect a file using permissions
+
+🌞 **Restreindre l'accès à un fichier personnel**
+
+- créer un fichier nommé `dont_readme.txt` (avec le contenu de votre choix
+  
+- il doit se trouver dans un dossier lisible et écrivable par tout le monde
+  
+  ```
+  [rockynj@node1 ~]$ mkdir dossier_lecture
+  chmod 777 dossier_lecture
+  ```
+  
+  [rockynj@node1 ~]$ cd dossier_lecture/
+  [rockynj@node1 dossier_lecture]$ echo "testsssssssssssssssssssssssssssssssssssssssss" > dont_readme.txt
+  [rockynj@node1 dossier_lecture]$ ls
+  dont_readme.txt
+  [rockynj@node1 dossier_lecture]$ cat dont_readme.txt 
+  testsssssssssssssssssssssssssssssssssssssssss
+  
+
+```
+- faites en sorte que seul votre utilisateur (pas votre groupe) puisse lire ou modifier ce fichier
+```
+
+[rockynj@node1 dossier_lecture]$ chmod 600 dont_readme.txt 
+[rockynj@node1 dossier_lecture]$ ls -l
+ total 4
+ -rw-------. 1 rockynj rockynj 46 Feb 22 17:18 dont_readme.txt
+
+```
+- personne ne doit pouvoir l'exécuter
+
+- prouvez que :
+- votre utilisateur peut le lire
+```
+
+[rockynj@node1 ~]$ cd dossier_lecture/
+ [rockynj@node1 dossier_lecture]$ cat
+ cat catchsegv catman  
+ [rockynj@node1 dossier_lecture]$ cat dont_readme.txt 
+testsssssssssssssssssssssssssssssssssssssssss
+ [rockynj@node1 dossier_lecture]$
+
+```
+- votre utilisateur peut le modifier
+```
+
+[rockynj@node1 dossier_lecture]$ echo "remplacement de texte TESTTTTTTTTTTTTTTTTT" > dont_readme.txt 
+[rockynj@node1 dossier_lecture]$ cat dont_readme.txt 
+remplacement de texte TESTTTTTTTTTTTTTTTTT
+ [rockynj@node1 dossier_lecture]$
+
+```
+- l'utilisateur `meow` ne peut pas y toucher
+```
+
+[rockynj@node1 dossier_lecture]$ sudo -u meow cat dont_readme.txt 
+[sudo] password for rockynj: 
+cat: dont_readme.txt: Permission denied
+ [rockynj@node1 dossier_lecture]$
+
+```
+- l'utilisateur `root` peut quand même y toucher
+```
+
+[rockynj@node1 dossier_lecture]$ sudo su
+ [root@node1 dossier_lecture]# 
+[root@node1 dossier_lecture]# cat dont_readme.txt 
+remplacement de texte TESTTTTTTTTTTTTTTTTT
+ [root@node1 dossier_lecture]#
+
+```
+> C'est l'un des "superpouvoirs" de `root` : contourner les permissions POSIX (les permissions `rwx`). On verra bien assez tôt que `root` n'a pas de "superpouvoirs" mais que ces contournements sont liés à une mécanique qu'on appelle les *capabilites*. C'est pour plus tard ! :)
+
+### [](#c-extended-attributes)C. Extended attributes
+
+🌞 **Lister tous les programmes qui ont le bit SUID activé**
+```
+
+[rockynj@node1 dossier_lecture]$ find / -perm /4000 -type f 2>/dev/null
+/usr/sbin/pam_timestamp_check
+/usr/sbin/grub2-set-bootflag
+/usr/sbin/unix_chkpwd
+/usr/bin/passwd
+/usr/bin/mount
+/usr/bin/sudo
+/usr/bin/gpasswd
+/usr/bin/umount
+/usr/bin/chage
+/usr/bin/crontab
+/usr/bin/newgrp
+/usr/bin/su
+
+```
+🌞 **Rendre le fichier `dont_readme.txt` immuable**
+
+- ça se fait avec les attributs étendus
+- "immuable" ça veut dire qu'il ne peut plus être modifié DU TOUT : il est donc en read-only
+- prouvez que le fichier ne peut plus être modifié par **personne**
+```
+
+[rockynj@node1 dossier_lecture]$ sudo chattr +i dont_readme.txt
+ [rockynj@node1 dossier_lecture]$ lsattr dont_readme.txt
+ ----i---------e------- dont_readme.txt
+ [rockynj@node1 dossier_lecture]$ sudo nano dont_readme.txt 
+[rockynj@node1 dossier_lecture]$ rm dont_readme.txt 
+rm: cannot remove 'dont_readme.txt': Operation not permitted
+
+```
+# Part V : OpenSSH Server
+
+**Le serveur OpenSSH est strictement nécessaire à l'administration, et occupe aussi une place cruciale dans le niveau de sécurité d'une machine.**
+
+En effet, on parle d'un programme qui tourne en `root` (obligé...), qui écoute sur un port réseau (il est donc attaquable, c'est une porte potentiellement ouverte), et qui en plus, bah sert à prendre le contrôle d'une machine à distance.
+
+Besoin d'un dessin pour expliquer à quel point c'est sensible ?
+
+Néanmoins nécessaire partout.
+
+## [](#1-basics)1. Basics
+
+🌞 **Afficher l'identifiant du processus serveur OpenSSH en cours d'exécution**
+
+- listez tous les programmes en cours d'exécution (avec une commande `ps`)
+- mettez en évidence uniquement la ligne qui concerne le serveur SSH (y'en a qu'une)
+```
+
+[rockynj@node1 ~]$ ps aux | grep sshd
+ root 865 0.0 1.9 16792 9344 ? Ss 17:09 0:00 sshd: /usr/sbin/sshd -D [listener] 0 of 10-100 startups
+
+```
+> On peut aussi obtenir l'info avec un `systemctl status` bien senti ;D
+
+🌞 **Changer le port d'écoute du serveur OpenSSH**
+
+- prouvez que votre changement a pris effet
+```
+
+[rockynj@node1 ~]$ sudo nano /etc/ssh/sshd_config
+ [rockynj@node1 ~]$ cat /etc/ssh/sshd_config | grep Port
+ cat: /etc/ssh/sshd_config: Permission denied
+ [rockynj@node1 ~]$ sudo cat /etc/ssh/sshd_config | grep Port
+ Port 4455
+
+```
+- prouvez que vous pouvez toujours vous connecter à la machine en SSH, sur ce nouveau port
+```
+
+pesso@fedora:/etc/profile.d$ ssh -p 4455 rockynj@10.1.1.11
+ rockynj@10.1.1.11's password: 
+Permission denied, please try again.
+ rockynj@10.1.1.11's password: 
+Last failed login: Sat Feb 22 17:43:31 CET 2025 from 10.1.1.250 on ssh:notty
+ There was 1 failed login attempt since the last successful login.
+ Last login: Sat Feb 22 17:33:45 2025 from 10.1.1.250
+ [rockynj@node1 ~]$ 
+[rockynj@node1 ~]$ [rockynj@node1 ~]$
+
+```
+- expliquez pourquoi on considère parfois utile de changer le port d'écoute par défaut du serveur SSH
+```
+
+car le port de SSH par défaut est le 22 et il ets connus de tous, donc si une personne malvaillante tombe sur un port 22 open il ets fort probable que ce dernier fasse référence au ssh
+
+```
+## [](#2-authentication-modes)2. Authentication modes
+
+### [](#a-key-based-authentication)A. Key-based authentication
+
+> Un classique ! Vous **devez** être à l'aise avec ça. Jamais trop tard pour s'y mettre.
+
+🌞 **Configurer une authentification par clé**
+
+- vous devez pouvoir vous connecter sur votre utilisateur
+- sans saisir de password
+- en utilisant une paire de clés
+```
+
+pesso@fedora:/etc/profile.d$ ssh-keygen -t rsa -b 4096
+ Generating public/private rsa key pair.
+ Enter file in which to save the key (/home/pesso/.ssh/id_rsa): 
+Enter passphrase for "/home/pesso/.ssh/id_rsa" (empty for no passphrase): 
+Enter same passphrase again: 
+Your identification has been saved in /home/pesso/.ssh/id_rsa
+ Your public key has been saved in /home/pesso/.ssh/id_rsa.pub
+ The key fingerprint is:
+ SHA256:bF3k5TUua2CY/SJH1bi8HQPAWl2Xmex1DTcxqXVeF0E pesso@fedora
+ The key's randomart image is:
+ +---[RSA 4096]----+
+ | ..+.OE&|
+ | +=.*.@%|
+ | oo=+.Bo*|
+ | . oo.o+o+.|
+ | S..o +o o|
+ | . o o. . |
+ | |
+ | |
+ | |
+ +----[SHA256]-----+
+
+pesso@fedora:/etc/profile.d$ ssh-copy-id -i ~/.ssh/id_rsa.pub -p 4455 rockynj@10.1.1.11
+ /usr/bin/ssh-copy-id: INFO: Source of key(s) to be installed: "/home/pesso/.ssh/id_rsa.pub"
+ /usr/bin/ssh-copy-id: INFO: attempting to log in with the new key(s), to filter out any that are already installed
+ /usr/bin/ssh-copy-id: INFO: 1 key(s) remain to be installed -- if you are prompted now it is to install the new keys
+ rockynj@10.1.1.11's password:
+
+Number of key(s) added: 1
+
+Now try logging into the machine, with: "ssh -i /home/pesso/.ssh/id_rsa -p 4455 'rockynj@10.1.1.11'"
+ and check to make sure that only the key(s) you wanted were added.
+
+```
+🌞 **Désactiver la connexion par password**
+```
+
+[rockynj@node1 ~]$ sudo nano /etc/ssh/sshd_config
+[rockynj@node1 ~]$ sudo cat /etc/ssh/sshd_config | grep Challenge
+ChallengeResponseAuthentication no
+[rockynj@node1 ~]$ sudo cat /etc/ssh/sshd_config | grep Passwo
+PasswordAuthentication no
+
+```
+🌞 **Désactiver la connexion en tant que `root`**
+```
+
+[rockynj@node1 ~]$ sudo cat /etc/ssh/sshd_config | grep PermitRoot
+PermitRootLogin no
+
+```
+## [](#3-bonus--cert-based-authentication)3. Bonus : Cert-based authentication
+
+> Moins classique, mais supporté depuis très longtemps par OpenSSH, et très fort en terme de sécurité !
+
+⭐ **BONUS** : **Configurer une authentification par certificat**
+```
+
+pesso@fedora:~/Documents/Efrei/cours/linux/CA_ssh_tp_advanced$ sudo ssh-keygen -f /home/pesso/Documents/Efrei/cours/linux/CA_ssh_tp_advanced/ca_key -C "SSH Certificat"
+Generating public/private ed25519 key pair.
+Enter passphrase for "/home/pesso/Documents/Efrei/cours/linux/CA_ssh_tp_advanced/ca_key" (empty for no passphrase): 
+Enter same passphrase again: 
+Your identification has been saved in /home/pesso/Documents/Efrei/cours/linux/CA_ssh_tp_advanced/ca_key
+Your public key has been saved in /home/pesso/Documents/Efrei/cours/linux/CA_ssh_tp_advanced/ca_key.pub
+The key fingerprint is:
+SHA256:6G5asXfPI4m32e1f6xfpVB/iHGOYmvRpFvtel+eNXJU SSH Certificat
+The key's randomart image is:
++--[ED25519 256]--+
+| |
+| |
+| o |
+| . . + = .o|
+| o S + B +E*|
+| . o o * o ++|
+| + ..+.. oo*|
+| o....+=.+.=B|
+| .o. .oo=+*+=|
++----[SHA256]-----+
+
+pesso@fedora:~/Documents/Efrei/cours/linux/CA_ssh_tp_advanced$ sudo ssh-keygen -s /home/pesso/Documents/Efrei/cours/linux/CA_ssh_tp_advanced/ca_key -I "SSH Cerificat" -n pesso -V +52w ~/.ssh/id_rsa.pub
+Signed user key /home/pesso/.ssh/id_rsa-cert.pub: id "SSH Cerificat" serial 0 for pesso valid from 2025-02-23T05:58:00 to 2026-02-22T05:59:51
+
+pesso@fedora:~/Documents/Efrei/cours/linux/CA_ssh_tp_advanced$ scp -i ~/.ssh/id_rsa -P 4455 /home/pesso/Documents/Efrei/cours/linux/CA_ssh_tp_advanced/ca_key.pub rockynj@10.1.1.11:/home/rockynj/ca_key.pub
+ca_key.pub 100% 96 166.6KB/s 00:00 
+pesso@fedora:~/Documents/Efrei/cours/linux/CA_ssh_tp_advanced$ ssh -p 4455 rockynj@10.1.1.11
+ls -l /home/rockynj/ca_key.pub
+Last login: Sat Feb 22 18:38:18 2025 from 10.1.1.250
+[rockynj@node1 ~]$ [rockynj@node1 ~]$ 
+[rockynj@node1 ~]$ [rockynj@node1 ~]$ 
+[rockynj@node1 ~]$ [rockynj@node1 ~]$ cat /home/rockynj/ca_key.pub >> ~/.ssh/authorized_keys
+
+```
+- j'ai dit par certificat, pas par simple clé
+- pareil, faites-le avec votre utilisateur pour les tests
+```
+
+pesso@fedora:~/Documents/Efrei/cours/linux/CA_ssh_tp_advanced$ ssh -i ~/.ssh/id_rsa -p 4455 rockynj@10.1.1.11
+ Last login: Sat Feb 22 18:43:54 2025 from 10.1.1.250
+ [rockynj@node1 ~]$
+
+```
+> L'authentification par certificat est toujours plus forte que l'authentification par simple clé : les deux parties (typiquement, le client et le serveur) doivent prouver l'identité à l'autre. De plus, le certificat ne peut pas être falsifié, du moins si on utilise une autorité de certification digne de confiance. L'idée du certificat : on va signer la clé du client avec la clé d'une autorité de certification. Ainsi, la clé n'est plus falsifiable, l'autorité de certification peut attester que c'est la bonne clé pour le bon client.
+
+## [](#4-further-hardening)4. Further hardening
+
+🌞 **Proposer au moins 5 configurations supplémentaires qui permettent de renforcer la sécurité du serveur OpenSSH**
+
+> Je vous recommande fooooortement de vous inspirer de ressources d'Internet pour ça. Regardez par exemple le guide de l'ANSSI à ce sujet (obsolète, mais la plupart des principes sont toujours valides), ou encore le guide CIS sur le sujet, ou l'excellent guide Mozilla sur le sujet, . Il existe d'autres ressources de confiance, à votre meilleur moteur de recherches !
+> 
+> ```
+> [rockynj@node1 ~]$ sudo cat /etc/ssh/sshd_config | grep -A 6 AllowUsers
+> AllowUsers pesso
+> MaxSessions 2
+> LogLevel VERBOSE
+> Protocol 2
+> ClientAliveInterval 300
+> ClientAliveCountMax 0
+> ```
+> 
+> ###### D'après ce que j'ai compris, le **AllowUsers** permet uniquement à l'utilisateur "pesso" de se connecter via SSH. La directive **LogLevel VERBOSE** donne des informations détaillées sur les connexions SSH. **Protocol 2** désactive la version vulnérable SSH-1 et force l'utilisation de SSH-2. Enfin, **ClientAliveInterval 300** et **ClientAliveCountMax** servent à vérifier toutes les 5 minutes l'inactivité de l'utilisateur et à déconnecter automatiquement la session si aucune réponse n'est reçue.
+> 
+> ## [](#5-fail2ban)5. fail2ban
+
+> Un outil extrêmement récurrent dans le monde Linux : un premier rempart contre les attaques de bruteforce.
+
+🌞 **Installer fail2ban sur la machine**
+```
+
+[rockynj@node1 ~]$ sudo dnf install fail2ban
+
+```
+🌞 **Configurer fail2ban**
+
+- en cas de multiples tentatives de connexion échouées sur le serveur SSH, l'utilisateur sera banni
+- précisément : après 7 tentatives de connexion échouées en moins de 5 minutes
+- c'est l'adresse IP de la personne qui fait des connexions échouées de façon répétée qui est blacklistée
+```
+
+[rockynj@node1 ~]$ cat /etc/fail2ban/jail.local 
+[sshd]
+ enabled = true
+ port = 4455
+ logpath = /var/log/auth.log
+ maxretry = 7
+ findtime = 300
+ bantime = 99999999999999999999999999999999999999999999999999
+
+```
+🌞 **Prouvez que fail2ban est effectif**
+
+- faites-vous ban
+```
+
+pesso@fedora:~/Documents/Efrei/cours/linux/CA_ssh_tp_advanced$ ssh -i ~/.ssh/id_rsa -p 4455 rockynj@10.1.1.11
+ rockynj@10.1.1.11's password: 
+Permission denied, please try again.
+
+```
+- montrez l'état de la jail fail2ban pour voir quelles IP sont ban
+```
+
+Je sais pas comment montrer l'ip ban, comme je suis ban et je peux plus me co au ssh
+
+```
+- levez le ban avec une commande adaptée
+
+## [](#6-automatisation)6. Automatisation
+
+Dernière section : un peu de dév en bash pour automatiser toute la configuration que vous venez de faire.
+
+L'idée est simple : écrire un script shell qui applique la configuration de cette Partie V (openSSH et fail2ban) sur une machine Rocky Linux fraîchement installée.
+
+🌞 **Ecrire le script `harden.sh`**
+
+- il doit vérifier que le serveur openSSH est démarré
+- il doit vérifier que le port d'écoute de openSSH n'est pas 22
+- il doit effectuer les configurations openSSH relatives à la sécurité
+  - je fais référence aux points 2. et 3.
+- il doit vérifier que fail2ban est installé et démarré
+- il doit vérifier que fail2ban surveille bien les logs de openSSH
+```
+
+systemctl is-active --quiet sshd
+if [ $? -eq 0 ]; then
+ echo "openSSH run."
+else
+ echo "openSSH pas démarré."
+ exit 1
+fi
+
+port=$(ss -tuln | grep sshd | awk '{print $5}' | cut -d: -f2)
+if [ "$port" -eq 22 ]; then
+ sed -i 's/Port 22/Port 4455/' /etc/ssh/sshd_config
+ systemctl restart sshd
+ echo "Le port d'écoute d'OpenSSH a été changé."
+else
+ echo "Le port d'écoute est déjà différent de 22."
+fi
+
+sed -i 's/#AllowUsers/AllowUsers pesso/' /etc/ssh/sshd_config
+sed -i 's/#MaxSessions 10/MaxSessions 2/' /etc/ssh/sshd_config
+sed -i 's/#LogLevel INFO/LogLevel VERBOSE/' /etc/ssh/sshd_config
+sed -i 's/#Protocol 2/Protocol 2/' /etc/ssh/sshd_config
+sed -i 's/#ClientAliveInterval 0/ClientAliveInterval 300/' /etc/ssh/sshd_config
+sed -i 's/#ClientAliveCountMax 3/ClientAliveCountMax 0/' /etc/ssh/sshd_config
+systemctl restart sshd
+
+systemctl is-active --quiet fail2ban
+if [ $? -eq 0 ]; then
+ echo "fail2ban est démarré."
+else
+ apt-get install -y fail2ban
+ systemctl start fail2ban
+ systemctl enable fail2ban
+ echo "fail2ban installé et démarré."
+fi
+
+grep -q "sshd" /etc/fail2ban/jail.local
+if [ $? -eq 0 ]; then
+ echo "fail2ban surveille déjà sshd."
+else
+ echo "[sshd]" >> /etc/fail2ban/jail.local
+ echo "enabled = true" >> /etc/fail2ban/jail.local
+ echo "port = ssh" >> /etc/fail2ban/jail.local
+ echo "logpath = /var/log/auth.log" >> /etc/fail2ban/jail.local
+ echo "maxretry = 7" >> /etc/fail2ban/jail.local
+ echo "findtime = 300" >> /etc/fail2ban/jail.local
+ echo "bantime = 600" >> /etc/fail2ban/jail.local
+ systemctl restart fail2ban
+ echo "fail2ban surveille sshd."
+fi
